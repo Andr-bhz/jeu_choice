@@ -1,177 +1,194 @@
+<?php
+// Démarrage ou réinitialisation de la session pour garder le nombre secret
+session_start();
+
+// Génération d'un nouveau nombre secret entre 1 et 100 si inexistant
+if (!isset($_SESSION['nombre_secret'])) {
+    $_SESSION['nombre_secret'] = rand(1, 100);
+}
+
+$message = "";
+$statut_lumiere = "eteinte"; // 'verte', 'rouge', ou 'eteinte'
+
+// Traitement du formulaire en PHP (si JavaScript est désactivé, le PHP prend le relais)
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['devinette'])) {
+    $saisie = intval($_POST['devinette']);
+    
+    if ($saisie === $_SESSION['nombre_secret']) {
+        $message = "Bravo ! Vous avez trouvé le nombre secret !";
+        $statut_lumiere = "verte";
+        // Optionnel : réinitialiser pour une nouvelle partie
+        // unset($_SESSION['nombre_secret']);
+    } elseif ($saisie < $_SESSION['nombre_secret']) {
+        $message = "C'est plus grand !";
+        $statut_lumiere = "rouge";
+    } else {
+        $message = "C'est plus petit !";
+        $statut_lumiere = "rouge";
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Variantes de Liens au Survol/Scroll</title>
+    <title>Jeu des chiffres à deviner</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0f0f0f;
-            color: #ffffff;
-            height: 100vh;
+            background-color: #f0f2f5;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
+            height: 100vh;
+            margin: 0;
         }
-
-        .container {
-            display: flex;
+        .game-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 320px;
+        }
+        h1 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
             width: 80%;
-            max-width: 1000px;
-            justify-content: space-between;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: center;
+            outline: none;
+        }
+        input[type="number"]:focus {
+            border-color: #007bff;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #message {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 15px;
+        }
+        /* Style des lumières (LED) */
+        .lumiere-container {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
             align-items: center;
         }
-
-        /* Liste des liens */
-        .links-list {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+        .led {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background-color: #ccc; /* Éteinte par défaut */
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
-
-        .link-item {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #555;
-            text-decoration: none;
-            transition: color 0.3s ease, transform 0.3s ease;
-            cursor: pointer;
-            background: none;
-            border: none;
-            text-align: left;
+        .led.verte {
+            background-color: #28a745;
+            box-shadow: 0 0 12px #28a745, inset 0 2px 4px rgba(255,255,255,0.4);
         }
-
-        .link-item:hover, .link-item.active {
-            color: #ffffff;
-            transform: translateX(10px);
+        .led.rouge {
+            background-color: #dc3545;
+            box-shadow: 0 0 12px #dc3545, inset 0 2px 4px rgba(255,255,255,0.4);
         }
-
-        /* Zone d'affichage des variantes */
-        .variants-container {
-            position: relative;
-            width: 400px;
-            height: 300px;
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: #1a1a1a;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .variant-card {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.4s ease, transform 0.4s ease;
-            transform: translateY(20px);
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding: 20px;
-            background-size: cover;
-            background-position: center;
-        }
-
-        .variant-card.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        .variant-info {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 8px;
-            backdrop-filter: blur(5px);
-        }
-
-        .variant-info h3 {
-            font-size: 1.2rem;
-            margin-bottom: 5px;
-            color: #ff3366;
-        }
-
-        .variant-info p {
-            font-size: 0.9rem;
-            color: #ccc;
+        .label-led {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- Liste des liens interactifs -->
-        <div class="links-list">
-            <button class="link-item active" data-target="variant-1">Design UI/UX</button>
-            <button class="link-item" data-target="variant-2">Développement Web</button>
-            <button class="link-item" data-target="variant-3">Intelligence Artificielle</button>
-        </div>
+<div class="game-container">
+    <h1>Devinez le chiffre</h1>
+    <p>Trouvez le nombre entre 1 et 100.</p>
+    
+    <!-- Formulaire (fonctionne avec ou sans JS grâce au PHP) -->
+    <form method="POST" id="gameForm">
+        <input type="number" name="devinette" id="devinette" min="1" max="100" placeholder="Votre nombre" required autocomplete="off">
+        <br>
+        <button type="submit" id="valider">Valider</button>
+    </form>
 
-        <!-- Conteneur des variantes correspondantes -->
-        <div class="variants-container">
-            <!-- Variante 1 -->
-            <div class="variant-card active" id="variant-1" style="background-image: linear-gradient(to top, rgba(0,0,0,0.9), transparent), url('https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80')">
-                <div class="variant-info">
-                    <h3>Variante : Mode Clair / Minimaliste</h3>
-                    <p>Focus sur l'expérience utilisateur et l'ergonomie visuelle.</p>
-                </div>
-            </div>
+    <div id="message"><?php echo htmlspecialchars($message); ?></div>
 
-            <!-- Variante 2 -->
-            <div class="variant-card" id="variant-2" style="background-image: linear-gradient(to top, rgba(0,0,0,0.9), transparent), url('https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80')">
-                <div class="variant-info">
-                    <h3>Variante : Stack Moderne</h3>
-                    <p>Utilisation de React, Node.js et architectures micro-services.</p>
-                </div>
-            </div>
-
-            <!-- Variante 3 -->
-            <div class="variant-card" id="variant-3" style="background-image: linear-gradient(to top, rgba(0,0,0,0.9), transparent), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80')">
-                <div class="variant-info">
-                    <h3>Variante : Modèles Génératifs</h3>
-                    <p>Intégration d'agents intelligents et de traitements de données lourds.</p>
-                </div>
-            </div>
-        </div>
+    <!-- Indicateur lumineux -->
+    <div class="lumiere-container">
+        <div id="ledIndicator" class="led <?php echo $statut_lumiere; ?>"></div>
+        <span class="label-led">Statut</span>
     </div>
+</div>
 
-    <script>
-        // Sélectionner tous les liens et toutes les cartes de variantes
-        const links = document.querySelectorAll('.link-item');
-        const variants = document.querySelectorAll('.variant-card');
+<!-- JavaScript pour rendre le jeu dynamique sans recharger la page -->
+<script>
+    // Récupération du nombre secret généré par PHP de manière sécurisée
+    const nombreSecret = <?php echo $_SESSION['nombre_secret']; ?>;
 
-        // Parcourir chaque lien pour écouter l'événement de survol (ou de défilement)
-        links.forEach(link => {
-            link.addEventListener('mouseenter', () => {
-                // Retirer la classe active de tous les liens et variantes
-                links.forEach(l => l.classList.remove('active'));
-                variants.forEach(v => v.classList.remove('active'));
+    const form = document.getElementById('gameForm');
+    const inputDevinette = document.getElementById('devinette');
+    const messageDiv = document.getElementById('message');
+    const ledIndicator = document.getElementById('ledIndicator');
 
-                // Activer le lien survolé
-                link.classList.add('active');
+    form.addEventListener('submit', function(e) {
+        // Empêche le rechargement de la page pour une expérience fluide en JS
+        e.preventDefault(); 
 
-                // Récupérer l'identifiant de la variante cible
-                const targetId = link.getAttribute('data-target');
-                const targetVariant = document.getElementById(targetId);
+        const valeurSaisie = parseInt(inputDevinette.value);
 
-                // Activer la variante correspondante
-                if (targetVariant) {
-                    targetVariant.classList.add('active');
-                }
-            });
-        });
-    </script>
+        // Réinitialisation des classes de la LED
+        ledIndicator.className = "led";
+
+        if (isNaN(valeurSaisie)) {
+            messageDiv.textContent = "Veuillez entrer un nombre valide.";
+            messageDiv.style.color = "#333";
+            return;
+        }
+
+        if (valeurSaisie === nombreSecret) {
+            messageDiv.textContent = "🎉 Bravo ! Vous avez trouvé le nombre secret !";
+            messageDiv.style.color = "#28a745";
+            ledIndicator.classList.add('verte'); // Allume la lumière verte
+        } else if (valeurSaisie < nombreSecret) {
+            messageDiv.textContent = "📉 C'est plus grand !";
+            messageDiv.style.color = "#dc3545";
+            ledIndicator.classList.add('rouge'); // Allume la lumière rouge
+        } else {
+            messageDiv.textContent = "📈 C'est plus petit !";
+            messageDiv.style.color = "#dc3545";
+            ledIndicator.classList.add('rouge'); // Allume la lumière rouge
+        }
+
+        // Vider le champ de saisie pour le prochain essai
+        inputDevinette.value = "";
+        inputDevinette.focus();
+    });
+</script>
 
 </body>
 </html>
